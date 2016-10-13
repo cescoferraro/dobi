@@ -140,7 +140,6 @@ func transformField(path pth.Path, raw reflect.Value, target reflect.Value) erro
 	if target.Kind() != reflect.Struct && target.Kind() != raw.Kind() {
 		return pth.Errorf(path, "expected type %q not %q", target.Kind(), raw.Kind())
 	}
-	// TODO: recursive call for struct type
 	switch target.Kind() {
 	case reflect.Slice:
 		return transformSlice(path, raw, target)
@@ -181,18 +180,15 @@ func transformStruct(path pth.Path, raw reflect.Value, target reflect.Value) err
 }
 
 func transformSlice(path pth.Path, raw reflect.Value, target reflect.Value) error {
-	elementType := target.Type().Elem()
-
 	target.Set(reflect.MakeSlice(target.Type(), raw.Len(), raw.Len()))
 	for i := 0; i < raw.Len(); i++ {
-		item := raw.Index(i).Elem()
-
-		if item.Kind() != elementType.Kind() {
-			return pth.Errorf(path.Add(strconv.FormatInt(int64(i), 10)),
-				"item in the list is of wrong type %q, expected %q",
-				item.Kind(), elementType)
+		err := transformField(
+			path.Add(strconv.FormatInt(int64(i), 10)),
+			raw.Index(i).Elem(),
+			target.Index(i))
+		if err != nil {
+			return err
 		}
-		target.Index(i).Set(item)
 	}
 	return nil
 }
